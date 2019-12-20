@@ -1,0 +1,26 @@
+
+#define LEFT_MOTOR_POWER_PIN 3
+#define LEFT_MOTOR_FWD_PIN 4
+#define LEFT_MOTOR_BWD_PIN 5
+
+#define RIGHT_MOTOR_POWER_PIN 9
+#define RIGHT_MOTOR_FWD_PIN 11
+#define RIGHT_MOTOR_BWD_PIN 10
+
+#define MOTOR_ON 125
+#define MOTOR_OFF 0
+
+void setup() {
+  pinMode(LEFT_MOTOR_POWER_PIN, OUTPUT);
+  pinMode(LEFT_MOTOR_FWD_PIN, OUTPUT);
+  pinMode(LEFT_MOTOR_BWD_PIN, OUTPUT);
+  pinMode(RIGHT_MOTOR_POWER_PIN, OUTPUT);
+  pinMode(RIGHT_MOTOR_FWD_PIN, OUTPUT);
+  pinMode(RIGHT_MOTOR_BWD_PIN, OUTPUT);
+
+  analogWrite(LEFT_MOTOR_POWER_PIN, MOTOR_OFF);
+  analogWrite(RIGHT_MOTOR_POWER_PIN, MOTOR_OFF);
+}
+
+void loop() {
+}
