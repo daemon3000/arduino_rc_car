@@ -59,8 +59,15 @@ class BluetoothBloc implements BlocBase {
   }
 
   void _handleDeviceDiscovered(BluetoothDiscoveryResult result) {
-    _scanResults.add(result);
-    _scanResultsStream.add(_scanResults);
+    if(!_isDeviceAlreadyDiscovered(result.device)) {
+      _scanResults.add(result);
+      _scanResultsStream.add(_scanResults);
+    }
+  }
+
+  bool _isDeviceAlreadyDiscovered(BluetoothDevice device) {
+    final result = _scanResults.firstWhere((e) => e.device.address == device.address, orElse: () => null);
+    return result != null;
   }
 
   void _cancelSubscription() {
