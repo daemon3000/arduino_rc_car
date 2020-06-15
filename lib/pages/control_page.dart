@@ -1,11 +1,10 @@
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:control_pad/control_pad.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 
 class ControlPage extends StatefulWidget {
@@ -19,9 +18,15 @@ class ControlPage extends StatefulWidget {
 }
 
 class _ControlPageState extends State<ControlPage> {
+  static const int _STOP = 0;
+  static const int _FORWARD = 1;
+  static const int _BACKWARD = 2;
+  static const int _FORWARD_RIGHT = 3;
+  static const int _FORWARD_LEFT = 4;
+  static const int _BACKWARD_RIGHT = 5;
+  static const int _BACKWARD_LEFT = 6;
+
   StreamSubscription<Uint8List> _subscription;
-  int _dx = 0;
-  int _dy = 0;
 
   @override
   void initState() {
@@ -51,78 +56,46 @@ class _ControlPageState extends State<ControlPage> {
         title: Text('Android RC - ${widget.device.name ?? widget.device.address}'),
       ),
       body: Container(
-        width: double.infinity,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: <Widget>[
-            _buildControlButton('Forward', 0, 1),
-            SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                _buildControlButton('Forward Left', -1, 1),
-                SizedBox(width: 20),
-                _buildControlButton('Forward Right', 1, 1),
-              ],
-            ),
-            SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: <Widget>[
-                _buildControlButton('Backward Left', -1, -1),
-                SizedBox(width: 20),
-                _buildControlButton('Backward Right', 1, -1),
-              ],
-            ),
-            SizedBox(height: 20),
-            _buildControlButton('Backward', 0, -1),
-          ],
-        ),
-      ),
-    );
-  }
-
-  _buildControlButton(String title, int dx, int dy) {
-    return GestureDetector(
-      onTapDown: (details) => _addInput(dx, dy),
-      onTapUp: (details) => _removeInput(dx, dy),
-      child: Container(
-        height: 46,
-        width: 130,
-        child: Card(
-          elevation: 2,
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Center(child: Text(title)),
+        child: Center(
+          child: JoystickView(
+            onDirectionChanged: _handleJoystickDirectionChanged,
+            size: min(MediaQuery.of(context).size.width, MediaQuery.of(context).size.height) * 0.8,
           ),
         ),
       ),
     );
   }
 
-  void _addInput(int dx, int dy) {
-    _dx = max(-1, min(1, _dx + dx));
-    _dy = max(-1, min(1, _dy + dy));
-    _sendUpdatedInput();
-  }
+  void _handleJoystickDirectionChanged(double degrees, double distance) {
+    int value = _STOP;
 
-  void _removeInput(int dx, int dy) {
-    _dx = max(-1, min(1, _dx - dx));
-    _dy = max(-1, min(1, _dy - dy));
-    _sendUpdatedInput();
-  }
+    if(distance.abs() > 0.5) {
+      double sector = degrees / 45.0;
 
-  void _sendUpdatedInput() {
-    int value = 0;
-    if(_dy > 0 && _dx == 0) value = 1;        //  FORWARD
-    else if(_dy < 0 && _dx == 0) value = 2;   //  BACKWARD
-    else if(_dy > 0 && _dx > 0) value = 3;    //  FORWARD-RIGHT
-    else if(_dy > 0 && _dx < 0) value = 4;    //  FORWARD-LEFT
-    else if(_dy < 0 && _dx > 0) value = 5;    //  BACKWARD-RIGHT
-    else if(_dy < 0 && _dx < 0) value = 6;    //  BACKWARD-LEFT
+      if((sector >= 0 && sector < 1) || (sector >= 7 && sector < 8)) {
+        value = _FORWARD;
+      }
+
+      if(sector >= 1 && sector < 2) {
+        value = _FORWARD_RIGHT;
+      }
+
+      if(sector >= 2 && sector < 3) {
+        value = _BACKWARD_RIGHT;
+      }
+
+      if(sector >= 3 && sector < 5) {
+        value = _BACKWARD;
+      }
+
+      if(sector >= 5 && sector < 6) {
+        value = _BACKWARD_LEFT;
+      }
+
+      if(sector >= 6 && sector < 7) {
+        value = _FORWARD_LEFT;
+      }
+    }
 
     print('OUT: ${ascii.encode('$value')}');
     widget.connection.output.add(ascii.encode('$value'));
