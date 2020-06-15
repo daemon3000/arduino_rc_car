@@ -18,13 +18,7 @@ class ControlPage extends StatefulWidget {
 }
 
 class _ControlPageState extends State<ControlPage> {
-  static const int _STOP = 0;
-  static const int _FORWARD = 1;
-  static const int _BACKWARD = 2;
-  static const int _FORWARD_RIGHT = 3;
-  static const int _FORWARD_LEFT = 4;
-  static const int _BACKWARD_RIGHT = 5;
-  static const int _BACKWARD_LEFT = 6;
+  static final Uint8List _STOP = Uint8List.fromList([0, 0, 0]);
 
   StreamSubscription<Uint8List> _subscription;
 
@@ -67,37 +61,30 @@ class _ControlPageState extends State<ControlPage> {
   }
 
   void _handleJoystickDirectionChanged(double degrees, double distance) {
-    int value = _STOP;
+    Uint8List bytes = _STOP;
 
     if(distance.abs() > 0.5) {
-      double sector = degrees / 45.0;
-
-      if((sector >= 0 && sector < 1) || (sector >= 7 && sector < 8)) {
-        value = _FORWARD;
-      }
-
-      if(sector >= 1 && sector < 2) {
-        value = _FORWARD_RIGHT;
-      }
-
-      if(sector >= 2 && sector < 3) {
-        value = _BACKWARD_RIGHT;
-      }
-
-      if(sector >= 3 && sector < 5) {
-        value = _BACKWARD;
-      }
-
-      if(sector >= 5 && sector < 6) {
-        value = _BACKWARD_LEFT;
-      }
-
-      if(sector >= 6 && sector < 7) {
-        value = _FORWARD_LEFT;
-      }
+      bytes = _encodeDegrees(degrees);
     }
 
-    print('OUT: ${ascii.encode('$value')}');
-    widget.connection.output.add(ascii.encode('$value'));
+    print('OUT: ${degrees.toInt()} degrees');
+    widget.connection.output.add(bytes);
+  }
+
+  Uint8List _encodeDegrees(double degrees) {
+    final bytes = Uint8List(3);
+    int q = degrees.toInt();
+    int k = bytes.length - 1;
+
+    bytes[0] = 1;     // 1 means we are moving.
+
+    while(q > 0) {
+      final t = q ~/ 256;
+      bytes[k--] = q - t * 256;
+
+      q = t;
+    }
+
+    return bytes;
   }
 }
