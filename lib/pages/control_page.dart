@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:arduino_rc_car/models/direction.dart';
 import 'package:flutter/material.dart';
 import 'package:control_pad/control_pad.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 
 class ControlPage extends StatefulWidget {
@@ -18,9 +19,16 @@ class ControlPage extends StatefulWidget {
 }
 
 class _ControlPageState extends State<ControlPage> {
-  static final Uint8List _STOP = Uint8List.fromList([0, 0, 0]);
+  static const int _STOP = 0;
+  static const int _FORWARD = 1;
+  static const int _BACKWARD = 2;
+  static const int _FORWARD_RIGHT = 3;
+  static const int _FORWARD_LEFT = 4;
+  static const int _BACKWARD_RIGHT = 5;
+  static const int _BACKWARD_LEFT = 6;
 
   StreamSubscription<Uint8List> _subscription;
+  Direction _direction = Direction.zero();
 
   @override
   void initState() {
@@ -28,6 +36,8 @@ class _ControlPageState extends State<ControlPage> {
     _subscription = widget.connection.input.listen((data) {
       print('IN: $data');
     });
+
+    SystemChrome.setPreferredOrientations([DeviceOrientation.landscapeLeft]);
     super.initState();
   }
 
@@ -40,6 +50,7 @@ class _ControlPageState extends State<ControlPage> {
       print('ERROR: $error');
     });
 
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     super.dispose();
   }
 
@@ -50,41 +61,77 @@ class _ControlPageState extends State<ControlPage> {
         title: Text('Android RC - ${widget.device.name ?? widget.device.address}'),
       ),
       body: Container(
-        child: Center(
-          child: JoystickView(
-            onDirectionChanged: _handleJoystickDirectionChanged,
-            size: min(MediaQuery.of(context).size.width, MediaQuery.of(context).size.height) * 0.8,
-          ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            JoystickView(
+              onDirectionChanged: _handleYJoystickChanged,
+            ),
+            JoystickView(
+              onDirectionChanged: _handleXJoystickChanged,
+            ),
+          ],
         ),
       ),
     );
   }
 
-  void _handleJoystickDirectionChanged(double degrees, double distance) {
-    Uint8List bytes = _STOP;
+  void _handleXJoystickChanged(double degrees, double distance) {
+    int x = 0;
 
     if(distance.abs() > 0.5) {
-      bytes = _encodeDegrees(degrees);
+      x = degrees >= 0.0 && degrees <= 180.0 ? 1 : -1;
     }
 
-    print('OUT: ${degrees.toInt()} degrees');
-    widget.connection.output.add(bytes);
+    _changeDirection(_direction.withX(x));
   }
 
-  Uint8List _encodeDegrees(double degrees) {
-    final bytes = Uint8List(3);
-    int q = degrees.toInt();
-    int k = bytes.length - 1;
+  void _handleYJoystickChanged(double degrees, double distance) {
+    int y = 0;
 
-    bytes[0] = 1;     // 1 means we are moving.
-
-    while(q > 0) {
-      final t = q ~/ 256;
-      bytes[k--] = q - t * 256;
-
-      q = t;
+    if(distance.abs() > 0.5) {
+      y = (degrees >= 270.0 && degrees <= 360) || (degrees >= 0 && degrees <= 90.0) ? 1 : -1;
     }
 
-    return bytes;
+    _changeDirection(_direction.withY(y));
+  }
+
+  void _changeDirection(Direction direction) {
+    int value = _STOP;
+
+    if(direction.y > 0) {
+      if(direction.x > 0){
+        value = _FORWARD_RIGHT;
+      }
+      else if(direction.x < 0) {
+        value = _FORWARD_LEFT;
+      }
+      else {
+        value = _FORWARD;
+      }
+    }
+    else if(direction.y < 0) {
+      if(direction.x > 0){
+        value = _BACKWARD_RIGHT;
+      }
+      else if(direction.x < 0) {
+        value = _BACKWARD_LEFT;
+      }
+      else {
+        value = _BACKWARD;
+      }
+    }
+    else if(direction.x > 0){
+      value = _FORWARD_RIGHT;
+    }
+    else if(direction.x < 0) {
+      value = _FORWARD_LEFT;
+    }
+
+    print('OUT: ${ascii.encode('$value')}');
+    widget.connection.output.add(ascii.encode('$value'));
+
+    _direction = direction;
   }
 }
